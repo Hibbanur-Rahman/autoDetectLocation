@@ -1,74 +1,124 @@
-import { Image, StyleSheet, Platform } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import React, { useState, useEffect } from "react";
+import {
+  Image,
+  StyleSheet,
+  ScrollView,
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import * as Location from "expo-location";
+import Detect from "@/assets/images/detect.png";
 
 export default function HomeScreen() {
+  const [loading, setLoading] = useState(false);
+  const [location, setLocation] = useState(null);
+  const [locationString, setLocationString] = useState("");
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  // Request location permissions and fetch coordinates
+  const getCurrentLocation = async () => {
+    setErrorMsg(null); // Reset error message
+    setLoading(true); // Show loading indicator
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setErrorMsg("Permission to access location was denied");
+        setLoading(false);
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
+      await fetchAddress(currentLocation);
+    } catch (error) {
+      setErrorMsg("Failed to fetch location. Please try again.");
+    } finally {
+      setLoading(false); // Hide loading indicator
+    }
+  };
+
+  // Reverse geocode the location to get a human-readable address
+  const fetchAddress = async (location) => {
+    try {
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      setLocationString(`${address.city}, ${address.region}`);
+    } catch (error) {
+      setErrorMsg("Unable to fetch address from location.");
+    }
+  };
+
+  // useEffect(() => {
+  //   getCurrentLocation();
+  // }, []);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Auto-Detect Location</Text>
+        <TouchableOpacity style={styles.detectButton} onPress={getCurrentLocation}>
+          <Image style={styles.icon} source={Detect} />
+          {loading ? (
+            <ActivityIndicator size="small" color="orange" />
+          ) : (
+            <Text style={styles.buttonText}>Press to auto-detect your location</Text>
+          )}
+        </TouchableOpacity>
+        {errorMsg && <Text style={styles.errorText}>{errorMsg}</Text>}
+        {locationString && (
+          <Text style={styles.locationText}>Detected Location: {locationString}</Text>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: "#fff",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  content: {
+    alignItems: "center",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  detectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 15,
+    borderRadius: 8,
+    backgroundColor: "#f0f0f0",
+    marginBottom: 20,
+  },
+  icon: {
+    width: 30,
+    height: 30,
+    marginRight: 10,
+  },
+  buttonText: {
+    fontSize: 16,
+    color: "#2A3980",
+  },
+  errorText: {
+    color: "red",
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: "center",
+  },
+  locationText: {
+    fontSize: 16,
+    marginTop: 10,
+    color: "#000",
   },
 });
